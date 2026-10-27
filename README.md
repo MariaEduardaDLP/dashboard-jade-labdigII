@@ -4,5 +4,5 @@ Implementação do dashboard com as métricas de uso da Prancha de Comunicação
 
 ## Ferramentas a serem usadas na implementação
 
-- Frontend: Streamlit
-- Backend: a decidir
+- Frontend: Python - Streamlit 
+- Backend: Python (FAST-API)
