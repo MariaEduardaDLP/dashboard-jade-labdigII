@@ -1,0 +1,42 @@
+.block-container {
+    max-width: 1440px;
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+}
+h1, h2, h3 { letter-spacing: -0.035em; }
+h1 { font-weight: 750; }
+[data-testid="stSidebar"] { border-right: 1px solid #e5dfcd; }
+[data-testid="stMetric"] {
+    background: #fffefb;
+    border: 1px solid #e5e3da;
+    border-top: 3px solid #007f9e;
+    border-radius: 12px;
+    padding: 1.2rem;
+    height: 100%;
+}
+[data-testid="stMetricLabel"] { color: #516175; }
+[data-testid="stMetricValue"] { font-size: clamp(1.5rem, 2.8vw, 2.2rem); }
+[data-testid="stVerticalBlockBorderWrapper"] { border-radius: 14px; }
+.jade-eyebrow {
+    color: #007f9e;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    margin-bottom: 0.4rem;
+}
+.jade-footer {
+    border-top: 1px solid #e5dfcd;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    color: #516175;
+    font-size: 0.8rem;
+}
+@media (max-width: 760px) {
+    .block-container { padding: 1.2rem 1rem 2rem; }
+    [data-testid="stHorizontalBlock"] { flex-wrap: wrap; }
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        flex: 1 1 100% !important;
+        min-width: 0 !important;
+    }
+    h1 { font-size: 2rem !important; }
+}

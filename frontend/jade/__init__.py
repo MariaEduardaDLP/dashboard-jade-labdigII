@@ -1,0 +1,1 @@
+"""Frontend do dashboard Jade."""
