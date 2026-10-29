@@ -17,7 +17,7 @@ def _style(figure: go.Figure, height: int = 370) -> go.Figure:
         legend_title_text="",
     )
     figure.update_xaxes(showgrid=False, automargin=True)
-    figure.update_yaxes(gridcolor="#E6E6DF", zeroline=False, automargin=True)
+    figure.update_yaxes(gridcolor="#EADFC5", zeroline=False, automargin=True)
     return figure
 
 
@@ -39,16 +39,20 @@ def hourly_chart(counts: pd.DataFrame) -> go.Figure:
 
 def usage_chart(counts: pd.DataFrame) -> go.Figure:
     ordered = counts.sort_values("count", ascending=True, kind="stable")
-    figure = px.bar(
-        ordered, x="count", y="message", color="urgency", orientation="h",
-        color_discrete_map=URGENCY_COLORS, text="count",
+    figure = px.scatter(
+        ordered, x="count", y="message", size="count", color="urgency",
+        size_max=44, color_discrete_map=URGENCY_COLORS,
         labels={"count": "Solicitações", "message": "", "urgency": "Urgência"},
         category_orders={"urgency": list(URGENCIES)},
     )
-    figure.update_traces(textposition="outside", cliponaxis=False)
-    figure.update_layout(showlegend=False, bargap=0.35)
+    figure.update_traces(
+        marker=dict(opacity=0.85, line=dict(width=1.5, color="#FFFCF1")),
+        hovertemplate="%{y}<br>%{x} solicitações<extra>%{fullData.name}</extra>",
+    )
+    figure.update_layout(showlegend=False)
     figure.update_yaxes(categoryorder="array", categoryarray=ordered["message"].tolist())
-    figure.update_xaxes(rangemode="tozero")
+    maximum = max(int(ordered["count"].max()), 1) if not ordered.empty else 1
+    figure.update_xaxes(range=[-maximum * 0.12, maximum * 1.15], rangemode="tozero")
     return _style(figure, 420)
 
 

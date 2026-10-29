@@ -30,15 +30,22 @@ sem backend. O aviso fica visível no painel. As mensagens e as urgências de
 
 ## O que está implementado
 
-- Filtros por período, níveis de urgência e mensagens.
+- Filtro global por período de solicitação, como único controle na barra lateral.
 - Total de solicitações, atendidas, sem atendimento e tempo médio de atendimento.
-- Gráfico com uma linha por mensagem, somando solicitações por horário do dia.
-- Quantidade de uso de cada mensagem em barras horizontais, para facilitar a leitura.
+- Gráfico com uma linha por mensagem, somando solicitações por horário do dia,
+  com dropdown de checkboxes e busca por mensagem (aceita termos sem acentos).
+  Esse filtro afeta apenas o gráfico e preserva a seleção durante a busca.
+- Quantidade de uso de cada mensagem em um gráfico de bolhas: posição e área
+  representam a quantidade de solicitações; as cores indicam a urgência.
+- Mini ranking com as dez mensagens e as quantidades de uso no período.
 - Distribuição de solicitações entre os três níveis de urgência.
-- Histórico e exportação CSV dos registros filtrados.
+- Histórico com botão de exportação ao lado do título e modal para baixar CSV
+  ou XLSX dos registros do período. A planilha mantém datas com fuso horário,
+  cabeçalho fixo e filtros nas colunas.
 - Estados de carregamento, ausência de dados, período incompleto e falha de API.
-- Tema baseado nas logos existentes, gráficos com largura adaptável e colunas
-  empilhadas em telas menores. Os filtros ficam na barra lateral, recolhível no celular.
+- Logo `jadeLogos/principal.png` exibida na proporção original e tema inspirado
+  no seu fundo creme, com detalhes em azul, amarelo e coral. Gráficos com largura
+  adaptável e colunas empilhadas em telas menores. A barra lateral é recolhível no celular.
 
 ### Regras dos indicadores
 
@@ -53,7 +60,10 @@ sem backend. O aviso fica visível no painel. As mensagens e as urgências de
 - “Sem atendimento” conta os registros pendentes **dentro do filtro atual**.
 - O gráfico por horário soma todos os dias do período, sem calcular média diária,
   e inclui as 24 horas e as mensagens selecionadas sem uso.
-- Os dados são mantidos em cache por até 60 segundos. **Atualizar dados** invalida
+- Indicadores, bolhas, urgências, ranking e histórico consideram todas as mensagens
+  no período, independentemente da seleção no gráfico por horário. O ranking inclui
+  mensagens sem uso com quantidade zero; empates seguem a ordem do catálogo.
+- Os dados são mantidos em cache por até 60 segundos. **Atualizar dados**, no painel principal, invalida
   o cache e faz uma nova leitura; não há atualização automática em segundo plano.
 
 ## Estrutura do repositório
@@ -70,7 +80,7 @@ sem backend. O aviso fica visível no painel. As mensagens e as urgências de
 │       ├── data.py         # Simulador, validação e adaptador HTTP
 │       ├── metrics.py      # Filtros, cálculos e preparação do CSV
 │       └── charts.py       # Gráficos Plotly
-├── jadeLogos/              # Identidade visual fornecida pelo projeto
+├── jadeLogos/              # Logo principal e identidade visual fornecidas
 ├── tests/                  # Testes de métricas, contrato e interface
 ├── requirements.txt
 ├── requirements-dev.txt
@@ -147,7 +157,8 @@ python -m pytest
 ```
 
 Os testes verificam as regras das métricas, limites de datas e fuso horário,
-validação dos eventos, falhas HTTP e execução da interface com `AppTest` do Streamlit.
+validação dos eventos, falhas HTTP, exportação XLSX, gráfico de bolhas, ranking,
+seleção e busca de mensagens e execução da interface com `AppTest` do Streamlit.
 Para conferir a apresentação, abra o dashboard em um navegador de computador e
 em uma tela de celular.
 

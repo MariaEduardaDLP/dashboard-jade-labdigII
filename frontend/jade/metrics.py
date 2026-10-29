@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import date
+from io import BytesIO
 
 import pandas as pd
 
@@ -79,7 +80,7 @@ def format_duration(minutes: float | None) -> str:
 
 
 def export_table(events: pd.DataFrame) -> pd.DataFrame:
-    """Usa datas com offset também no CSV, preservando o fuso do evento."""
+    """Usa datas com offset nas exportações, preservando o fuso do evento."""
     result = events[["id", "message", "urgency", "requested_at", "attended_at"]].copy()
     result["status"] = events["attended_at"].notna().map({True: "Atendida", False: "Pendente"})
     result["response_minutes"] = events["response_minutes"].round(2)
@@ -90,3 +91,21 @@ def export_table(events: pd.DataFrame) -> pd.DataFrame:
         "requested_at": "Solicitada em", "attended_at": "Atendida em",
         "status": "Status", "response_minutes": "Tempo de atendimento (min)",
     })
+
+
+def export_xlsx(table: pd.DataFrame) -> bytes:
+    """Gera uma planilha com cabeçalho fixo, filtros e datas com fuso."""
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        table.to_excel(writer, sheet_name="Solicitações", index=False)
+        sheet = writer.sheets["Solicitações"]
+        sheet.freeze_panes = "A2"
+        sheet.auto_filter.ref = sheet.dimensions
+        for cells in sheet.columns:
+            width = max(len(str(cell.value or "")) for cell in cells) + 2
+            sheet.column_dimensions[cells[0].column_letter].width = min(width, 40)
+            # Mantém os textos como texto, inclusive IDs recebidos da API.
+            for cell in cells:
+                if isinstance(cell.value, str):
+                    cell.data_type = "s"
+    return output.getvalue()

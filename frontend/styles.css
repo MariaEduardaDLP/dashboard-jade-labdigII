@@ -1,22 +1,65 @@
 .block-container {
-    max-width: 1440px;
-    padding-top: 2rem;
+    max-width: 1480px;
     padding-bottom: 3rem;
+}
+/* Reserva espaço para o cabeçalho fixo do Streamlit acima da logo. */
+[data-testid="stMain"] .block-container {
+    padding-top: 6rem;
+}
+[data-testid="stAppViewContainer"] {
+    background: radial-gradient(ellipse at top left, #ead2ac66, transparent 55%),
+                radial-gradient(ellipse at bottom right, #efcf9066, transparent 60%),
+                #fff6da;
 }
 h1, h2, h3 { letter-spacing: -0.035em; }
 h1 { font-weight: 750; }
-[data-testid="stSidebar"] { border-right: 1px solid #e5dfcd; }
+[data-testid="stSidebar"] {
+    background: #f4e7c7;
+    border-right: 1px solid #dfcba5;
+    width: 300px !important;
+    min-width: 300px !important;
+    max-width: 300px !important;
+    flex: 0 0 300px !important;
+}
+/* Desativa também a área de arraste ao redor do puxador. */
+[data-testid="stSidebar"] div:has(> [data-testid="stSidebarResizeHandle"]),
+[data-testid="stSidebarResizeHandle"] {
+    display: none !important;
+    pointer-events: none !important;
+}
+/* O recolhimento usa a largura fixa, mesmo após um redimensionamento salvo. */
+[data-testid="stSidebar"][data-collapsed="true"],
+[data-testid="stSidebar"][aria-expanded="false"] {
+    transform: translateX(-100%) !important;
+}
+[data-testid="stImage"] img {
+    height: auto;
+    max-width: 100%;
+    border-radius: 14px;
+}
 [data-testid="stMetric"] {
-    background: #fffefb;
-    border: 1px solid #e5e3da;
+    background: #fffcf1;
+    border: 1px solid #e6d6b5;
     border-top: 3px solid #007f9e;
     border-radius: 12px;
     padding: 1.2rem;
     height: 100%;
+    box-shadow: 0 4px 14px #71512108;
 }
+[data-testid="stColumn"]:nth-child(2) [data-testid="stMetric"] { border-top-color: #648345; }
+[data-testid="stColumn"]:nth-child(3) [data-testid="stMetric"] { border-top-color: #d48b20; }
+[data-testid="stColumn"]:nth-child(4) [data-testid="stMetric"] { border-top-color: #d65468; }
 [data-testid="stMetricLabel"] { color: #516175; }
 [data-testid="stMetricValue"] { font-size: clamp(1.5rem, 2.8vw, 2.2rem); }
-[data-testid="stVerticalBlockBorderWrapper"] { border-radius: 14px; }
+[data-testid="stVerticalBlockBorderWrapper"],
+[data-testid="stVerticalBlockBorderWrapper"] > div,
+[data-testid="stVerticalBlock"][style*="border"] {
+    border-radius: 14px;
+    border-color: #e6d6b5 !important;
+    background-color: #fffcf1;
+}
+[data-testid="stDialog"] [role="dialog"],
+[data-testid="stPopoverBody"] { background-color: #fffcf1; }
 .jade-eyebrow {
     color: #007f9e;
     font-size: 0.75rem;
@@ -24,8 +67,31 @@ h1 { font-weight: 750; }
     letter-spacing: 0.15em;
     margin-bottom: 0.4rem;
 }
+.jade-ranking { list-style: none; padding: 0; margin: 0; }
+.jade-ranking li {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 43px;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid #ecdfc5;
+    font-size: 0.85rem;
+}
+.jade-ranking li:last-child { border-bottom: 0; }
+.jade-rank-position { color: #6a766e; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.jade-ranking li:first-child .jade-rank-position { color: #a56a16; font-weight: 700; }
+.jade-rank-message { flex: 1; }
+.jade-ranking strong {
+    color: #007f9e;
+    background: #007f9e0d;
+    border-radius: 6px;
+    min-width: 2.2rem;
+    padding: 0.15rem 0.35rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
 .jade-footer {
-    border-top: 1px solid #e5dfcd;
+    border-top: 1px solid #dfcba5;
     margin-top: 2rem;
     padding-top: 1rem;
     color: #516175;
@@ -33,6 +99,7 @@ h1 { font-weight: 750; }
 }
 @media (max-width: 760px) {
     .block-container { padding: 1.2rem 1rem 2rem; }
+    [data-testid="stMain"] .block-container { padding-top: 5.5rem; }
     [data-testid="stHorizontalBlock"] { flex-wrap: wrap; }
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
         flex: 1 1 100% !important;

@@ -1,11 +1,14 @@
 from datetime import date
+from io import BytesIO
 
+from openpyxl import load_workbook
+import pandas as pd
 import pytest
 
 from jade.catalog import MESSAGES, URGENCIES
 from jade.data import parse_events
 from jade.metrics import (
-    export_table, filter_events, format_duration, hourly_counts, message_counts,
+    export_table, export_xlsx, filter_events, format_duration, hourly_counts, message_counts,
     summarize, urgency_counts,
 )
 
@@ -65,3 +68,30 @@ def test_csv_preserves_timezone_and_pending_status(events):
     assert table.loc["b", "Atendida em"] == ""
     assert table.loc["b", "Status"] == "Pendente"
     assert table.loc["d", "Tempo de atendimento (min)"] == 0
+
+
+def test_xlsx_preserves_history_timezone_pending_status_and_numeric_values(events):
+    table = export_table(events)
+    content = export_xlsx(table)
+    restored = pd.read_excel(BytesIO(content), keep_default_na=False)
+    assert restored.columns.tolist() == table.columns.tolist()
+    assert restored["Solicitação"].tolist() == table["Solicitação"].tolist()
+    records = restored.set_index("Solicitação")
+    assert records.loc["a", "Solicitada em"].endswith("-03:00")
+    assert records.loc["b", "Atendida em"] == ""
+    assert records.loc["b", "Status"] == "Pendente"
+    assert records.loc["d", "Tempo de atendimento (min)"] == 0
+    workbook = load_workbook(BytesIO(content))
+    assert workbook.active.freeze_panes == "A2"
+    assert workbook.active.auto_filter.ref == "A1:G6"
+
+
+def test_xlsx_handles_empty_history_and_keeps_api_identifiers_as_text():
+    table = export_table(parse_events([]))
+    sheet = load_workbook(BytesIO(export_xlsx(table))).active
+    assert sheet.max_row == 1
+    assert [cell.value for cell in sheet[1]] == table.columns.tolist()
+    table.loc[0, "Solicitação"] = "=1+1"
+    sheet = load_workbook(BytesIO(export_xlsx(table))).active
+    assert sheet["A2"].value == "=1+1"
+    assert sheet["A2"].data_type == "s"
