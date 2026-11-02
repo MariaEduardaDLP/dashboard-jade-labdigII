@@ -80,20 +80,71 @@ sem backend. O aviso fica visível no painel. As mensagens e as urgências de
 │       ├── data.py         # Simulador, validação e adaptador HTTP
 │       ├── metrics.py      # Filtros, cálculos e preparação do CSV
 │       └── charts.py       # Gráficos Plotly
+├── backend/
+│   ├── main.py             # API FastAPI: GET /events e /health
+│   ├── database.py         # Inicialização do banco PostgreSQL
+│   ├── events.py           # Persistência e regras de seleção/atendimento
+│   ├── serial_listener.py  # Leitura contínua da porta serial
+│   └── serial_protocol.py  # Parser dos quadros recebidos pela serial
 ├── jadeLogos/              # Logo principal e identidade visual fornecidas
-├── tests/                  # Testes de métricas, contrato e interface
+├── tests/                  # Testes de métricas, protocolo, contrato e interface
 ├── requirements.txt
 ├── requirements-dev.txt
 └── pyproject.toml          # Configuração dos testes
 ```
 
-## Integração com o backend
+## Backend e integração serial
 
-O frontend está separado do backend, previsto em **FastAPI**. Este repositório
-não implementa o serviço nem a comunicação com o hardware.
+O backend usa **FastAPI**, **PostgreSQL** e um leitor serial opcional. Para
+iniciá-lo, instale as dependências e configure `JADE_DATABASE_URL`:
 
-O adaptador usa o **contrato inicial proposto** abaixo; o endpoint e o catálogo
-devem ser confirmados com a equipe do backend antes de usar dados reais.
+```text
+JADE_DATABASE_URL=postgresql+psycopg://usuario:senha@localhost:5432/jade
+```
+
+O banco PostgreSQL deve estar criado e acessível. Na primeira inicialização, o
+backend cria a tabela de eventos. Inicie o serviço a partir da raiz:
+
+```bash
+uvicorn backend.main:app --host 0.0.0.0 --port 8000
+```
+
+O endpoint `GET /events` retorna todos os eventos no contrato consumido pelo
+dashboard; `GET /health` verifica se a API está respondendo.
+
+### Protocolo serial
+
+O leitor serial é desabilitado por padrão. Para habilitá-lo, configure a porta e
+o baud rate exatos do dispositivo, além de `JADE_SERIAL_ENABLED=true`:
+
+```bash
+export JADE_DATABASE_URL=postgresql+psycopg://usuario:senha@localhost:5432/jade
+export JADE_SERIAL_ENABLED=true
+export JADE_SERIAL_PORT=/dev/ttyUSB0
+# Configure JADE_SERIAL_BAUDRATE com o valor definido pelo fabricante.
+uvicorn backend.main:app --host 0.0.0.0 --port 8000
+```
+
+No Windows, configure as mesmas variáveis com `$env:JADE_DATABASE_URL`,
+`$env:JADE_SERIAL_ENABLED`, `$env:JADE_SERIAL_PORT` (por exemplo, `COM3`) e
+`$env:JADE_SERIAL_BAUDRATE`. Sem o hardware conectado, mantenha a serial
+desabilitada e ainda é possível executar a API e testar `/events`.
+
+Os quadros seguem `tipo,código,urgência` e terminam em CRLF, por exemplo
+`S,01,1\r\n`. `S` registra uma solicitação e `A` registra um atendimento.
+Os códigos `01` a `10` correspondem à ordem atual de `frontend/jade/catalog.py`;
+urgências `1`, `2` e `3` correspondem a Baixa, Média e Alta. Uma divergência
+entre a urgência serial e a do catálogo é rejeitada e registrada no log.
+
+Como o quadro `A` não leva um identificador de solicitação, o backend encerra a
+solicitação pendente mais antiga (`FIFO`) daquela mensagem. Um atendimento sem
+solicitação pendente também é rejeitado e registrado. As datas são registradas
+em UTC; o dashboard as converte para `America/Sao_Paulo`.
+
+O endpoint e o catálogo ainda precisam ser conferidos com a equipe antes do uso
+com a prancha real. A tabela é criada automaticamente nesta versão inicial; não
+há ainda gestão de migrações, autenticação, identificação de múltiplas pranchas
+ou atualização em tempo real.
 
 Para selecionar a API, configure as variáveis no terminal antes de iniciar:
 
@@ -108,7 +159,7 @@ No PowerShell, use `$env:JADE_DATA_SOURCE="api"` e
 O arquivo `.env.example` documenta as opções; arquivos `.env` **não são
 carregados automaticamente**. Use `JADE_DATA_SOURCE=demo` para voltar à demonstração.
 
-### Contrato proposto: `GET /events`
+### Contrato da API: `GET /events`
 
 Resposta HTTP 200 com uma lista JSON:
 
@@ -141,11 +192,9 @@ ou sem fuso e atendimentos anteriores à solicitação são rejeitados com erro 
 Falhas da API **não acionam o modo demonstração**. Textos e urgências vêm do catálogo
 local; altere-o em conjunto com o backend.
 
-Nesta primeira versão, a API deve devolver a lista completa, sem paginação, e os
-filtros são aplicados no frontend. O backend deve associar o botão de atendimento
-à solicitação correta, mesmo quando houver várias chamadas pendentes. Paginação,
-autenticação, identificação de pranchas e atualização em tempo real ficam para
-quando os contratos dessas funcionalidades forem definidos.
+Nesta primeira versão, a API devolve a lista completa, sem paginação, e os
+filtros são aplicados no frontend. O atendimento FIFO por mensagem é necessário
+porque o quadro serial não inclui o ID da solicitação.
 
 ## Validação
 
@@ -153,12 +202,21 @@ Com o ambiente virtual ativo:
 
 ```bash
 python -m pip install -r requirements-dev.txt
+export JADE_TEST_DATABASE_URL=postgresql+psycopg://usuario:senha@localhost:5432/jade_test
 python -m pytest
 ```
 
+`requirements.txt` lista as dependências necessárias para executar o frontend e
+o backend. `requirements-dev.txt` inclui essas dependências e acrescenta as
+ferramentas de teste; por isso, no desenvolvimento, instale apenas o segundo.
+`JADE_TEST_DATABASE_URL` deve apontar para um banco PostgreSQL dedicado a testes.
+Cada teste cria um schema isolado nesse banco e o remove ao terminar; não use a URL
+do banco com dados reais.
+
 Os testes verificam as regras das métricas, limites de datas e fuso horário,
 validação dos eventos, falhas HTTP, exportação XLSX, gráfico de bolhas, ranking,
-seleção e busca de mensagens e execução da interface com `AppTest` do Streamlit.
+seleção e busca de mensagens, processamento serial, persistência PostgreSQL e
+contrato HTTP do backend, além da execução da interface com `AppTest` do Streamlit.
 Para conferir a apresentação, abra o dashboard em um navegador de computador e
 em uma tela de celular.
 
@@ -167,9 +225,9 @@ e [configuração de temas](https://docs.streamlit.io/develop/concepts/configura
 
 ## Próximos passos
 
-1. Confirmar as dez mensagens e sua classificação de urgência com a equipe da prancha.
-2. Acordar o contrato de eventos e a associação entre solicitação e atendimento.
-3. Conectar a API real e definir a identificação da prancha e os filtros necessários.
+1. Confirmar os códigos, mensagens e urgências com a equipe da prancha.
+2. Validar o baud rate e o formato de saída no hardware real.
+3. Definir migrações, autenticação e identificação caso haja mais de uma prancha.
 
 ## Licença
 
