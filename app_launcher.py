@@ -29,13 +29,32 @@ def _available_port() -> int:
 
 
 def _show_error(message: str) -> None:
-    import tkinter
-    from tkinter import messagebox
+    try:
+        import tkinter
+        from tkinter import messagebox
+    except ImportError:
+        print(message, file=sys.stderr)
+        return
 
-    root = tkinter.Tk()
-    root.withdraw()
-    messagebox.showerror("Jade Dashboard", message, parent=root)
-    root.destroy()
+    try:
+        root = tkinter.Tk()
+        root.withdraw()
+        messagebox.showerror("Jade Dashboard", message, parent=root)
+        root.destroy()
+    except tkinter.TclError:
+        print(message, file=sys.stderr)
+
+
+def _application_data_directory() -> Path:
+    if sys.platform == "win32":
+        base_directory = Path(
+            os.getenv("LOCALAPPDATA", Path.home() / "AppData" / "Local")
+        )
+    else:
+        base_directory = Path(
+            os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share")
+        )
+    return base_directory / "JadeDashboard"
 
 
 def _wait_for_url(url: str, service_thread: Thread, timeout: float = 30) -> None:
@@ -66,9 +85,7 @@ def main() -> None:
         )
         return
 
-    log_directory = Path(
-        os.getenv("LOCALAPPDATA", Path.home() / "AppData" / "Local")
-    ) / "JadeDashboard"
+    log_directory = _application_data_directory()
     log_directory.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
         filename=log_directory / "jade.log",
@@ -123,7 +140,7 @@ def main() -> None:
         streamlit_thread.join()
     except KeyboardInterrupt:
         LOGGER.info("Aplicativo encerrado pelo usuário.")
-    except (ImportError, OSError, RuntimeError, ValueError) as exc:
+    except Exception as exc:
         LOGGER.exception("Falha ao iniciar o aplicativo.")
         _show_error(
             f"Não foi possível iniciar o Jade Dashboard: {exc}\n\n"

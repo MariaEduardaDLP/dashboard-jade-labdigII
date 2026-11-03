@@ -69,6 +69,29 @@ O executável será gerado em `dist\JadeDashboard\JadeDashboard.exe`. Distribua 
 pasta `dist\JadeDashboard` inteira, não apenas o `.exe`. O build precisa ocorrer
 no Windows; gerar em Linux não produz um executável Windows.
 
+### Linux
+
+Em uma distribuição Linux com Python 3.11 ou superior, gere o pacote na raiz:
+
+```bash
+./build_linux.sh
+```
+
+O executável será `dist/JadeDashboard/JadeDashboard`; distribua a pasta
+`dist/JadeDashboard` completa ou o arquivo `dist/JadeDashboard-linux-x86_64.tar.gz`
+gerado pelo script. Para iniciar:
+
+```bash
+export JADE_DATABASE_URL='postgresql+psycopg://usuario:senha@host:5432/postgres?sslmode=require'
+./dist/JadeDashboard/JadeDashboard
+```
+
+O programa abrirá o dashboard no navegador padrão. O build inclui dependências
+Python, mas depende das bibliotecas de sistema da distribuição Linux; para
+compatibilidade, gere o pacote na versão mais antiga de Linux que pretende
+suportar. Os builds Windows e Linux são separados e devem ser feitos no sistema
+operacional de destino.
+
 **Segurança:** não coloque a URI do banco no código, no `.spec` ou no pacote.
 Quem tiver uma cópia da URI terá acesso ao banco conforme as permissões daquele
 usuário. Para distribuir o aplicativo a várias pessoas, a arquitetura recomendada

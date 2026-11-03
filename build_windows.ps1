@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+    $ErrorActionPreference = "Stop"
 
 if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
     throw "Instale Python 3.11+ para Windows antes de gerar o aplicativo."
