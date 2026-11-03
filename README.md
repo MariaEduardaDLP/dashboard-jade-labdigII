@@ -28,6 +28,54 @@ O modo padrão é **demonstração**: gera trinta dias de dados fictícios e fun
 sem backend. O aviso fica visível no painel. As mensagens e as urgências de
 `frontend/jade/catalog.py` são **exemplos provisórios**, a confirmar com a equipe.
 
+## Aplicativo executável para Windows
+
+O executável inicia a API local e o dashboard, que abre no navegador padrão. A
+persistência continua no PostgreSQL do Supabase. O computador precisa de acesso
+à internet e de `JADE_DATABASE_URL` configurada no ambiente do Windows antes de
+abrir o aplicativo.
+
+O `.exe` **não contém** a senha do banco. Para testar no PowerShell, copie a URI
+de conexão PostgreSQL do painel Supabase (preferencialmente o pooler em modo
+Session) e configure a variável apenas na sessão atual:
+
+```powershell
+$env:JADE_DATABASE_URL = "postgresql+psycopg://postgres.<project-ref>:SUA_SENHA@HOST:PORT/postgres?sslmode=require"
+```
+
+Se a URI copiada começar com `postgres://` ou `postgresql://`, o backend a
+converte automaticamente para o driver `psycopg`. Caracteres especiais na senha
+precisam estar codificados para URL. Não publique nem envie essa URI: ela contém
+credenciais de acesso ao banco. Para uso permanente, configure a variável de
+ambiente do usuário pelo Windows e reinicie a sessão antes de abrir o app.
+No PowerShell, a configuração permanente pode ser feita assim:
+
+```powershell
+[Environment]::SetEnvironmentVariable(
+  "JADE_DATABASE_URL",
+  "postgresql+psycopg://postgres.<project-ref>:SUA_SENHA@HOST:PORT/postgres?sslmode=require",
+  "User"
+)
+```
+
+Para gerar o pacote, em um **Windows com Python 3.11 instalado**, na raiz do
+projeto, execute:
+
+```powershell
+.\build_windows.ps1
+```
+
+O executável será gerado em `dist\JadeDashboard\JadeDashboard.exe`. Distribua a
+pasta `dist\JadeDashboard` inteira, não apenas o `.exe`. O build precisa ocorrer
+no Windows; gerar em Linux não produz um executável Windows.
+
+**Segurança:** não coloque a URI do banco no código, no `.spec` ou no pacote.
+Quem tiver uma cópia da URI terá acesso ao banco conforme as permissões daquele
+usuário. Para distribuir o aplicativo a várias pessoas, a arquitetura recomendada
+é hospedar a API separadamente e manter a credencial do Supabase somente no
+servidor; o aplicativo desktop deve chamar essa API autenticada, e não conectar
+diretamente ao PostgreSQL.
+
 ## O que está implementado
 
 - Filtro global por período de solicitação, como único controle na barra lateral.
@@ -82,10 +130,13 @@ sem backend. O aviso fica visível no painel. As mensagens e as urgências de
 │       └── charts.py       # Gráficos Plotly
 ├── backend/
 │   ├── main.py             # API FastAPI: GET /events e /health
-│   ├── database.py         # Inicialização do banco PostgreSQL
+│   ├── database.py         # Inicialização do PostgreSQL
 │   ├── events.py           # Persistência e regras de seleção/atendimento
 │   ├── serial_listener.py  # Leitura contínua da porta serial
 │   └── serial_protocol.py  # Parser dos quadros recebidos pela serial
+├── app_launcher.py         # Inicializador da versão empacotada para Windows
+├── JadeDashboard.spec      # Configuração do PyInstaller
+├── build_windows.ps1       # Script de build no Windows
 ├── jadeLogos/              # Logo principal e identidade visual fornecidas
 ├── tests/                  # Testes de métricas, protocolo, contrato e interface
 ├── requirements.txt
@@ -95,8 +146,9 @@ sem backend. O aviso fica visível no painel. As mensagens e as urgências de
 
 ## Backend e integração serial
 
-O backend usa **FastAPI**, **PostgreSQL** e um leitor serial opcional. Para
-iniciá-lo, instale as dependências e configure `JADE_DATABASE_URL`:
+O backend usa **FastAPI**, **PostgreSQL** (incluindo Supabase) e um leitor serial
+opcional. Para iniciá-lo, instale as dependências e configure `JADE_DATABASE_URL`
+com a URI PostgreSQL do seu banco:
 
 ```text
 JADE_DATABASE_URL=postgresql+psycopg://usuario:senha@localhost:5432/jade

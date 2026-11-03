@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 
-from backend.database import create_database
+from backend.database import _normalize_database_url, create_database
 from backend.events import Event, SerialProcessingError, process_serial_message
 from backend.main import create_app
 from backend.serial_protocol import SerialMessage
@@ -70,6 +70,21 @@ def test_selection_creates_catalog_event(session_factory):
 def test_database_rejects_non_postgresql_urls():
     with pytest.raises(ValueError, match="requer PostgreSQL"):
         create_database("sqlite://")
+
+
+@pytest.mark.parametrize(
+    "database_url",
+    [
+        "postgresql://user:password@db.example.com:5432/postgres?sslmode=require",
+        "postgres://user:password@db.example.com:5432/postgres?sslmode=require",
+        "postgresql+psycopg://user:password@db.example.com:5432/postgres",
+    ],
+)
+def test_database_accepts_supabase_postgresql_urls(database_url):
+    normalized_url = _normalize_database_url(database_url)
+
+    assert normalized_url.drivername == "postgresql+psycopg"
+    assert normalized_url.get_backend_name() == "postgresql"
 
 
 def test_attendance_closes_oldest_pending_request_for_same_message(session_factory):
