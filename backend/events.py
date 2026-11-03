@@ -98,7 +98,10 @@ def process_serial_message(
                     f"Não há solicitação pendente para a mensagem "
                     f"{message.message_code}."
                 )
-            if event_time < event.requested_at:
+            requested_at = event.requested_at
+            if requested_at.tzinfo is None:
+                requested_at = requested_at.replace(tzinfo=timezone.utc)
+            if event_time < requested_at:
                 raise SerialProcessingError(
                     "O atendimento não pode ocorrer antes da solicitação."
                 )
