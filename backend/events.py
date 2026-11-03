@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from uuid import uuid4
-
+from sqlalchemy import DateTime, Index, Integer, String, select
 from sqlalchemy import Index, Integer, String, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
@@ -29,8 +29,15 @@ class Event(Base):
     sequence: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     id: Mapped[str] = mapped_column(String(36), unique=True, index=True)
     message_id: Mapped[str] = mapped_column(String(32), nullable=False)
-    requested_at: Mapped[datetime] = mapped_column(nullable=False)
-    attended_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    requested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    attended_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     urgency: Mapped[int] = mapped_column(Integer, nullable=False)
 
 

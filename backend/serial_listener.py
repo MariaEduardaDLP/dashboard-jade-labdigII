@@ -4,6 +4,7 @@ import logging
 from threading import Event as StopEvent
 from threading import Thread
 
+import serial
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -53,8 +54,12 @@ class SerialListener:
             with serial.Serial(
                 self._port,
                 self._baudrate,
+                bytesize=serial.SEVENBITS,
+                parity=serial.PARITY_EVEN,
+                stopbits=serial.STOPBITS_ONE,
                 timeout=1,
-            ) as connection:
+                ) as connection:
+
                 LOGGER.info(
                     "Leitura serial iniciada em %s a %s baud.",
                     self._port,
