@@ -6,14 +6,13 @@ from io import BytesIO
 
 import pandas as pd
 
-from jade.catalog import MESSAGES, URGENCIES
+from shared.catalog import MESSAGES, URGENCIES
 
 
 @dataclass(frozen=True)
 class Summary:
     total: int
     attended: int
-    pending: int
     average_minutes: float | None
 
 
@@ -37,7 +36,6 @@ def summarize(events: pd.DataFrame) -> Summary:
     return Summary(
         total=len(events),
         attended=attended,
-        pending=len(events) - attended,
         average_minutes=float(events["response_minutes"].mean()) if attended else None,
     )
 

@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from jade.catalog import MESSAGES, URGENCIES, URGENCY_COLORS
+from shared.catalog import MESSAGES, URGENCIES, URGENCY_COLORS
 
 
 def _style(figure: go.Figure, height: int = 370) -> go.Figure:

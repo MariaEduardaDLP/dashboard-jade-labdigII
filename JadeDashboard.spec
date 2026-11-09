@@ -29,6 +29,7 @@ a = Analysis(
         (str(root / ".streamlit"), ".streamlit"),
         (str(root / "backend"), "backend"),
         (str(root / "frontend"), "frontend"),
+        (str(root / "shared"), "shared"),
         (str(root / "jadeLogos"), "jadeLogos"),
     ],
     hiddenimports=streamlit_hiddenimports

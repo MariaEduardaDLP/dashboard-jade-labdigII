@@ -1,10 +1,17 @@
 from datetime import datetime
+import json
 
 import pytest
 import requests
 
-from jade.catalog import MESSAGES
-from jade.data import DataSourceError, demo_events, fetch_api_events, parse_events
+from shared.catalog import MESSAGES
+from frontend.jade.data import (
+    DataSourceError,
+    demo_events,
+    fetch_api_events,
+    fetch_supabase_events,
+    parse_events,
+)
 
 VALID = {"id": "a", "message_id": "agua", "requested_at": "2026-10-27T12:00:00Z", "attended_at": None}
 
@@ -37,7 +44,7 @@ def test_demo_has_ten_messages_and_no_future_events():
 def test_api_timeout_reports_failure_without_simulated_fallback(monkeypatch):
     def timeout(*args, **kwargs):
         raise requests.Timeout()
-    monkeypatch.setattr("jade.data.requests.get", timeout)
+    monkeypatch.setattr("frontend.jade.data.requests.get", timeout)
     with pytest.raises(DataSourceError, match="Não foi possível carregar"):
         fetch_api_events("http://localhost:8000")
 
@@ -50,5 +57,53 @@ def test_api_uses_configured_prefix_and_validates_response(monkeypatch):
         response.status_code = 200
         response._content = b'[{"id":"a","message_id":"agua","requested_at":"2026-10-27T12:00:00Z","attended_at":null}]'
         return response
-    monkeypatch.setattr("jade.data.requests.get", respond)
+    monkeypatch.setattr("frontend.jade.data.requests.get", respond)
     assert fetch_api_events("http://localhost:8000/api/")["id"].tolist() == ["a"]
+
+
+def test_supabase_uses_publishable_key_and_fetches_all_pages(monkeypatch):
+    calls = []
+
+    def respond(url, params, headers, timeout):
+        calls.append((url, params.copy(), headers.copy(), timeout))
+        response = requests.Response()
+        response.status_code = 200
+        if params["offset"] == 0:
+            response._content = json.dumps([
+                {
+                    "id": f"event-{index}",
+                    "message_id": "agua",
+                    "requested_at": "2026-10-27T12:00:00Z",
+                    "attended_at": None,
+                }
+                for index in range(1000)
+            ]).encode()
+        else:
+            response._content = b"[]"
+        return response
+
+    monkeypatch.setattr("frontend.jade.data.requests.get", respond)
+    result = fetch_supabase_events(
+        "https://jade-project.supabase.co/",
+        "sb_publishable_example",
+    )
+
+    assert len(result) == 1000
+    assert result["id"].iloc[0] == "event-0"
+    assert [call[1]["offset"] for call in calls] == [0, 1000]
+    assert all(call[1]["limit"] == 1000 for call in calls)
+    assert all(call[2]["apikey"] == "sb_publishable_example" for call in calls)
+    assert all(call[3] == 15 for call in calls)
+
+
+@pytest.mark.parametrize(
+    ("project_url", "publishable_key"),
+    [
+        ("http://jade-project.supabase.co", "sb_publishable_example"),
+        ("https://jade-project.supabase.co", ""),
+        ("https://jade-project.supabase.co", "sb_secret_do_not_use"),
+    ],
+)
+def test_supabase_rejects_invalid_public_configuration(project_url, publishable_key):
+    with pytest.raises(DataSourceError):
+        fetch_supabase_events(project_url, publishable_key)

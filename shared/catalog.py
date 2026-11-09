@@ -1,4 +1,4 @@
-"""Catálogo provisório: confirmar textos e urgências com a equipe da prancha."""
+"""Catálogo provisório de mensagens da prancha Jade."""
 
 from dataclasses import dataclass
 

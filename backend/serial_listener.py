@@ -29,18 +29,28 @@ class SerialListener:
         self._port = port
         self._baudrate = baudrate
         self._stop_event = StopEvent()
+        self._startup_event = StopEvent()
+        self._startup_error: serial.SerialException | None = None
         self._thread: Thread | None = None
 
     def start(self) -> None:
         if self._thread is not None and self._thread.is_alive():
             return
         self._stop_event.clear()
+        self._startup_event.clear()
+        self._startup_error = None
         self._thread = Thread(
             target=self._read_frames,
             name="jade-serial-listener",
             daemon=True,
         )
         self._thread.start()
+        if not self._startup_event.wait(timeout=5):
+            raise RuntimeError("Tempo esgotado ao abrir a porta serial configurada.")
+        if self._startup_error is not None:
+            raise RuntimeError(
+                f"Não foi possível abrir a porta serial {self._port}."
+            ) from self._startup_error
 
     def stop(self) -> None:
         self._stop_event.set()
@@ -58,8 +68,8 @@ class SerialListener:
                 parity=serial.PARITY_EVEN,
                 stopbits=serial.STOPBITS_ONE,
                 timeout=1,
-                ) as connection:
-
+            ) as connection:
+                self._startup_event.set()
                 LOGGER.info(
                     "Leitura serial iniciada em %s a %s baud.",
                     self._port,
@@ -70,7 +80,10 @@ class SerialListener:
                     if not frame:
                         continue
                     self._process_frame(frame)
-        except serial.SerialException:
+        except serial.SerialException as exc:
+            if not self._startup_event.is_set():
+                self._startup_error = exc
+                self._startup_event.set()
             LOGGER.exception("Falha na conexão serial %s.", self._port)
 
     def _process_frame(self, frame: bytes) -> None:

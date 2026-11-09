@@ -45,6 +45,35 @@ def _show_error(message: str) -> None:
         print(message, file=sys.stderr)
 
 
+def _prompt_serial_port() -> str | None:
+    import tkinter
+    from tkinter import simpledialog
+
+    from serial.tools import list_ports
+
+    available_ports = [port.device for port in list_ports.comports()]
+    detected = ", ".join(available_ports) if available_ports else "nenhuma detectada"
+    initial_value = available_ports[0] if len(available_ports) == 1 else ""
+    root = tkinter.Tk()
+    root.withdraw()
+    try:
+        value = simpledialog.askstring(
+            "Jade Dashboard",
+            f"Porta serial a observar ({detected}):\nExemplo: COM3",
+            initialvalue=initial_value,
+            parent=root,
+        )
+    finally:
+        root.destroy()
+    if value is None:
+        return None
+    port = value.strip()
+    if not port:
+        _show_error("Informe uma porta serial, como COM3, para iniciar o aplicativo.")
+        return None
+    return port
+
+
 def _application_data_directory() -> Path:
     if sys.platform == "win32":
         base_directory = Path(
@@ -74,14 +103,13 @@ def _wait_for_url(url: str, service_thread: Thread, timeout: float = 30) -> None
 def main() -> None:
     root = _resource_root()
     sys.path.insert(0, str(root))
-    sys.path.insert(0, str(root / "frontend"))
     os.chdir(root)
 
     if not os.getenv("JADE_DATABASE_URL", "").strip():
         _show_error(
-            "Configure a variável JADE_DATABASE_URL com a URL PostgreSQL "
-            "do Supabase antes de abrir o Jade Dashboard. Consulte o README "
-            "para ver os passos. Não compartilhe essa URL: ela contém senha."
+            "Configure JADE_DATABASE_URL com a conexão PostgreSQL do Supabase "
+            "antes de abrir o Jade Dashboard. Consulte o README para obter os "
+            "passos. Não compartilhe essa configuração: ela contém credenciais."
         )
         return
 
@@ -93,25 +121,34 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
-    api_port = _available_port()
-    dashboard_port = _available_port()
-    api_url = f"http://127.0.0.1:{api_port}"
-    os.environ["JADE_DATA_SOURCE"] = "api"
-    os.environ["JADE_API_URL"] = api_url
-
-    api_server = uvicorn.Server(
-        uvicorn.Config(
-            "backend.main:app",
-            host="127.0.0.1",
-            port=api_port,
-            log_level="info",
-            log_config=None,
-        )
-    )
-    api_thread = Thread(target=api_server.run, name="jade-api", daemon=True)
-    api_thread.start()
-
+    api_server = None
+    api_thread = None
     try:
+        serial_port = _prompt_serial_port()
+        if serial_port is None:
+            return
+        os.environ["JADE_SERIAL_ENABLED"] = "true"
+        os.environ["JADE_SERIAL_PORT"] = serial_port
+        os.environ.setdefault("JADE_SERIAL_BAUDRATE", "115200")
+
+        api_port = _available_port()
+        dashboard_port = _available_port()
+        api_url = f"http://127.0.0.1:{api_port}"
+        os.environ["JADE_DATA_SOURCE"] = "api"
+        os.environ["JADE_API_URL"] = api_url
+
+        api_server = uvicorn.Server(
+            uvicorn.Config(
+                "backend.main:app",
+                host="127.0.0.1",
+                port=api_port,
+                log_level="info",
+                log_config=None,
+            )
+        )
+        api_thread = Thread(target=api_server.run, name="jade-api", daemon=True)
+        api_thread.start()
+
         _wait_for_url(f"{api_url}/health", api_thread)
         LOGGER.info("API local iniciada em %s", api_url)
 
@@ -141,14 +178,18 @@ def main() -> None:
     except KeyboardInterrupt:
         LOGGER.info("Aplicativo encerrado pelo usuário.")
     except Exception as exc:
-        LOGGER.exception("Falha ao iniciar o aplicativo.")
+        LOGGER.error("Falha ao iniciar o aplicativo (%s).", type(exc).__name__)
         _show_error(
-            f"Não foi possível iniciar o Jade Dashboard: {exc}\n\n"
+            "Não foi possível iniciar o Jade Dashboard. Verifique a porta "
+            "serial, a conectividade com o Supabase e as configurações. "
+            "A categoria da falha foi registrada em log.\n\n"
             f"Consulte o log em {log_directory / 'jade.log'}."
         )
     finally:
-        api_server.should_exit = True
-        api_thread.join(timeout=5)
+        if api_server is not None:
+            api_server.should_exit = True
+        if api_thread is not None:
+            api_thread.join(timeout=5)
 
 
 if __name__ == "__main__":

@@ -8,11 +8,17 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
-from jade.catalog import MESSAGES, TIMEZONE, URGENCIES
-from jade.charts import hourly_chart, urgency_chart, usage_chart
-from jade.data import DataSourceError, demo_events, fetch_api_events
-from jade.metrics import (
+from shared.catalog import MESSAGES, TIMEZONE, URGENCIES
+from frontend.jade.charts import hourly_chart, urgency_chart, usage_chart
+from frontend.jade.data import (
+    DataSourceError,
+    demo_events,
+    fetch_api_events,
+    fetch_supabase_events,
+)
+from frontend.jade.metrics import (
     export_table, export_xlsx, filter_events, format_duration, hourly_counts,
     message_counts, summarize, urgency_counts,
 )
@@ -21,15 +27,32 @@ ROOT = Path(__file__).resolve().parents[1]
 MESSAGE_IDS = [message.id for message in MESSAGES]
 
 
-@st.cache_data(ttl=60, show_spinner=False)
-def load_events(source: str, api_url: str):
+@st.cache_data(ttl=45, show_spinner=False)
+def load_events(
+    source: str,
+    api_url: str,
+    supabase_url: str,
+    publishable_key: str,
+):
     if source == "demo":
         events = demo_events(datetime.now(ZoneInfo(TIMEZONE)))
     elif source == "api":
         events = fetch_api_events(api_url)
+    elif source == "supabase":
+        events = fetch_supabase_events(supabase_url, publishable_key)
     else:
-        raise DataSourceError("JADE_DATA_SOURCE deve ser demo ou api.")
+        raise DataSourceError("JADE_DATA_SOURCE deve ser demo, api ou supabase.")
     return events, datetime.now(ZoneInfo(TIMEZONE))
+
+
+def _setting(name: str) -> str:
+    environment_value = os.getenv(name)
+    if environment_value is not None:
+        return environment_value.strip()
+    try:
+        return str(st.secrets.get(name, "")).strip()
+    except StreamlitSecretNotFoundError:
+        return ""
 
 
 def toggle_hourly_message(message_id: str) -> None:
@@ -84,14 +107,12 @@ def export_history(table: pd.DataFrame, start, end) -> None:
     )
 
 
-def main() -> None:
-    st.set_page_config(
-        page_title="Jade · Dashboard", page_icon="🦜", layout="wide",
-        initial_sidebar_state="auto",
-    )
-    st.html(f"<style>{(ROOT / 'frontend/styles.css').read_text()}</style>")
-    source = os.getenv("JADE_DATA_SOURCE", "demo").strip().lower()
-    api_url = os.getenv("JADE_API_URL", "").strip()
+def _render_dashboard(
+    source: str,
+    api_url: str,
+    supabase_url: str,
+    publishable_key: str,
+) -> None:
 
     logo, heading = st.columns([1, 5], vertical_alignment="center")
     with logo:
@@ -105,7 +126,12 @@ def main() -> None:
 
     try:
         with st.spinner("Carregando solicitações…"):
-            events, loaded_at = load_events(source, api_url)
+            events, loaded_at = load_events(
+                source,
+                api_url,
+                supabase_url,
+                publishable_key,
+            )
     except DataSourceError as exc:
         st.error(str(exc), icon=":material/cloud_off:")
         if st.button("Tentar novamente", icon=":material/refresh:"):
@@ -132,18 +158,17 @@ def main() -> None:
     context, refresh = st.columns([5, 1], vertical_alignment="center")
     context.caption(
         f"{start:%d/%m/%Y} a {end:%d/%m/%Y} · "
-        f"Fonte: {'demonstração' if source == 'demo' else 'API'} · "
+        f"Fonte: {'demonstração' if source == 'demo' else 'Supabase' if source == 'supabase' else 'API'} · "
         f"Atualizado às {loaded_at:%H:%M:%S} (São Paulo)"
     )
     if refresh.button("Atualizar dados", icon=":material/refresh:", width="stretch"):
         load_events.clear()
         st.rerun()
 
-    cards = st.columns(4)
+    cards = st.columns(3)
     cards[0].metric("Solicitações", f"{summary.total:,}".replace(",", "."))
     cards[1].metric("Atendidas", f"{summary.attended:,}".replace(",", "."))
-    cards[2].metric("Sem atendimento", str(summary.pending), help="Solicitações do período sem registro do botão de atendimento.")
-    cards[3].metric("Tempo médio", format_duration(summary.average_minutes), help="Tempo entre a solicitação e o botão de atendimento. Considera apenas solicitações atendidas.")
+    cards[2].metric("Tempo médio", format_duration(summary.average_minutes), help="Tempo entre a solicitação e o botão de atendimento. Considera apenas solicitações atendidas.")
 
     if filtered.empty:
         st.info("Nenhuma solicitação para o período selecionado. Ajuste o período na barra lateral.")
@@ -211,6 +236,26 @@ def main() -> None:
             "- As dez mensagens e suas urgências são provisórias e precisam ser confirmadas com a equipe."
         )
     st.html('<div class="jade-footer">Projeto Jade · Laboratório Digital II · Comunicação Alternativa</div>')
+
+
+def main() -> None:
+    st.set_page_config(
+        page_title="Jade · Dashboard", page_icon="🦜", layout="wide",
+        initial_sidebar_state="auto",
+    )
+    st.html(f"<style>{(ROOT / 'frontend/styles.css').read_text()}</style>")
+    api_url = _setting("JADE_API_URL")
+    supabase_url = _setting("SUPABASE_URL")
+    publishable_key = _setting("SUPABASE_KEY")
+    source = _setting("JADE_DATA_SOURCE").lower()
+    if not source:
+        source = "supabase" if supabase_url or publishable_key else "demo"
+
+    @st.fragment(run_every=60)
+    def dashboard() -> None:
+        _render_dashboard(source, api_url, supabase_url, publishable_key)
+
+    dashboard()
 
 
 if __name__ == "__main__":

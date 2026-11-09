@@ -5,9 +5,9 @@ from openpyxl import load_workbook
 import pandas as pd
 import pytest
 
-from jade.catalog import MESSAGES, URGENCIES
-from jade.data import parse_events
-from jade.metrics import (
+from shared.catalog import MESSAGES, URGENCIES
+from frontend.jade.data import parse_events
+from frontend.jade.metrics import (
     export_table, export_xlsx, filter_events, format_duration, hourly_counts, message_counts,
     summarize, urgency_counts,
 )
@@ -19,7 +19,7 @@ def test_local_day_includes_late_attendance_and_utc_events(events):
     selected = filter_events(events, date(2026, 10, 1), date(2026, 10, 1), list(URGENCIES), IDS)
     assert set(selected["id"]) == {"a", "b", "c", "d"}
     result = summarize(selected)
-    assert (result.total, result.attended, result.pending) == (4, 3, 1)
+    assert (result.total, result.attended) == (4, 3)
     assert result.average_minutes == pytest.approx(4 / 3)
 
 
@@ -37,7 +37,7 @@ def test_empty_selection_does_not_mean_all_messages(events):
 
 def test_empty_api_response_supports_all_aggregations():
     empty = parse_events([])
-    assert summarize(empty).pending == 0
+    assert summarize(empty).attended == 0
     assert hourly_counts(empty, IDS)["count"].sum() == 0
     assert message_counts(empty, IDS)["count"].sum() == 0
     assert urgency_counts(empty)["count"].sum() == 0

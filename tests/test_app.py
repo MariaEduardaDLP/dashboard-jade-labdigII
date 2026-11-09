@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from jade.catalog import MESSAGES
+from shared.catalog import MESSAGES
 
 APP = Path(__file__).resolve().parents[1] / "frontend/app.py"
 
@@ -19,7 +19,10 @@ def app(monkeypatch):
 
 def test_demo_renders_and_exports_the_filtered_records(app):
     assert not app.exception
-    assert len(app.metric) == 4
+    assert len(app.metric) == 3
+    assert [metric.label for metric in app.metric] == [
+        "Solicitações", "Atendidas", "Tempo médio",
+    ]
     assert len(app.get("plotly_chart")) == 3
     total = int(app.metric[0].value.replace(".", ""))
     table = app.dataframe[0].value
@@ -88,15 +91,23 @@ def test_ranking_matches_history_counts_in_descending_order(app):
 
 
 def test_empty_api_keeps_history_and_message_filter(monkeypatch):
-    from jade.data import parse_events
+    from frontend.jade.data import parse_events
 
     monkeypatch.setenv("JADE_DATA_SOURCE", "api")
     monkeypatch.setenv("JADE_API_URL", "http://localhost:8000")
-    monkeypatch.setattr("jade.data.fetch_api_events", lambda url: parse_events([]))
+
+    def empty_events(url: str):
+        assert url == "http://localhost:8000"
+        return parse_events([])
+
+    monkeypatch.setattr(
+        "frontend.jade.data.fetch_api_events",
+        empty_events,
+    )
     empty_app = AppTest.from_file(str(APP)).run(timeout=20)
     assert not empty_app.exception
     assert empty_app.metric[0].value == "0"
-    assert empty_app.metric[3].value == "—"
+    assert empty_app.metric[2].value == "—"
     assert not empty_app.get("plotly_chart")
     assert empty_app.dataframe[0].value.empty
     assert len(empty_app.checkbox) == 10

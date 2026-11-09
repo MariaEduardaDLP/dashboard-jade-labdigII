@@ -2,12 +2,19 @@
 
 from datetime import datetime, timezone
 from uuid import uuid4
-from sqlalchemy import DateTime, Index, Integer, String, select
-from sqlalchemy import Index, Integer, String, select
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    select,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from backend.serial_protocol import SerialMessage
-from frontend.jade.catalog import MESSAGES
+from shared.catalog import MESSAGES
 
 URGENCY_BY_LABEL = {"Baixa": 1, "Média": 2, "Alta": 3}
 MESSAGE_BY_CODE = {
@@ -24,10 +31,16 @@ class Event(Base):
     __tablename__ = "events"
     __table_args__ = (
         Index("ix_events_message_pending_fifo", "message_id", "attended_at", "sequence"),
+        UniqueConstraint("id", name="uq_events_id"),
+        CheckConstraint("urgency IN (1, 2, 3)", name="ck_events_urgency"),
+        CheckConstraint(
+            "attended_at IS NULL OR attended_at >= requested_at",
+            name="ck_events_attendance_order",
+        ),
     )
 
     sequence: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    id: Mapped[str] = mapped_column(String(36), unique=True, index=True)
+    id: Mapped[str] = mapped_column(String(36), index=True)
     message_id: Mapped[str] = mapped_column(String(32), nullable=False)
     requested_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

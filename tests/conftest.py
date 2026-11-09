@@ -1,6 +1,6 @@
 import pytest
 
-from jade.data import parse_events
+from frontend.jade.data import parse_events
 
 
 @pytest.fixture

@@ -3,6 +3,8 @@
 import sys
 from types import SimpleNamespace
 
+import pytest
+
 from backend.events import Event
 from backend.serial_listener import SerialListener
 
@@ -46,3 +48,29 @@ def test_serial_listener_configures_115200_7e1(monkeypatch):
 def test_database_model_declares_timezone_aware_columns():
     assert Event.__table__.c.requested_at.type.timezone is True
     assert Event.__table__.c.attended_at.type.timezone is True
+    assert {
+        constraint.name for constraint in Event.__table__.constraints
+    } >= {
+        "uq_events_id",
+        "ck_events_urgency",
+        "ck_events_attendance_order",
+    }
+
+
+def test_serial_listener_reports_port_open_failure(monkeypatch):
+    class FakeSerial:
+        def __init__(self, *args, **kwargs):
+            raise OSError("porta indisponível")
+
+    fake_serial = SimpleNamespace(
+        Serial=FakeSerial,
+        SerialException=OSError,
+        SEVENBITS=7,
+        PARITY_EVEN="E",
+        STOPBITS_ONE=1,
+    )
+    monkeypatch.setitem(sys.modules, "serial", fake_serial)
+    listener = SerialListener(None, "COM99", 115200)
+
+    with pytest.raises(RuntimeError, match="porta serial COM99"):
+        listener.start()

@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import requests
 
-from jade.catalog import MESSAGES, MESSAGE_BY_ID, TIMEZONE
+from shared.catalog import MESSAGES, MESSAGE_BY_ID, TIMEZONE
 
 EVENT_COLUMNS = [
     "id", "message_id", "requested_at", "attended_at", "message", "urgency",
@@ -120,3 +120,52 @@ def fetch_api_events(base_url: str) -> pd.DataFrame:
             "da API e o contrato de GET /events."
         ) from exc
     return parse_events(payload)
+
+
+def fetch_supabase_events(project_url: str, publishable_key: str) -> pd.DataFrame:
+    """Fetch public dashboard events from Supabase REST with range pagination."""
+    project_url = project_url.strip().rstrip("/")
+    publishable_key = publishable_key.strip()
+    if not project_url.startswith("https://") or not project_url.endswith(".supabase.co"):
+        raise DataSourceError("Configure SUPABASE_URL com a URL HTTPS do projeto Supabase.")
+    if not publishable_key.startswith("sb_publishable_"):
+        raise DataSourceError(
+            "Configure SUPABASE_KEY com a chave sb_publishable do projeto."
+        )
+
+    url = f"{project_url}/rest/v1/events"
+    headers = {"apikey": publishable_key}
+    rows = []
+    page_size = 1000
+    try:
+        for offset in range(0, 1_000_000, page_size):
+            response = requests.get(
+                url,
+                params={
+                    "select": "id,message_id,requested_at,attended_at",
+                    "order": "requested_at.desc",
+                    "limit": page_size,
+                    "offset": offset,
+                },
+                headers=headers,
+                timeout=15,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, list):
+                raise DataSourceError("O Supabase retornou uma resposta incompatível.")
+            rows.extend(payload)
+            if len(payload) < page_size:
+                break
+        else:
+            raise DataSourceError(
+                "A leitura excedeu o limite de paginação configurado do Supabase."
+            )
+    except DataSourceError:
+        raise
+    except (requests.RequestException, ValueError) as exc:
+        raise DataSourceError(
+            "Não foi possível carregar os registros do Supabase. Confira a URL, "
+            "a chave publishable e a política pública de leitura."
+        ) from exc
+    return parse_events(rows)

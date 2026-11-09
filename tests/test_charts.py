@@ -1,6 +1,6 @@
-from jade.catalog import MESSAGES
-from jade.charts import usage_chart
-from jade.metrics import message_counts
+from shared.catalog import MESSAGES
+from frontend.jade.charts import usage_chart
+from frontend.jade.metrics import message_counts
 
 
 def test_usage_bubbles_use_area_for_counts_and_keep_message_labels(events):
