@@ -3,12 +3,17 @@
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
+import sys
 from unicodedata import normalize
 from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from shared.catalog import MESSAGES, TIMEZONE, URGENCIES
 from frontend.jade.charts import hourly_chart, urgency_chart, usage_chart
@@ -23,7 +28,6 @@ from frontend.jade.metrics import (
     message_counts, summarize, urgency_counts,
 )
 
-ROOT = Path(__file__).resolve().parents[1]
 MESSAGE_IDS = [message.id for message in MESSAGES]
 
 
