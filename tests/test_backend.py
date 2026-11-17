@@ -60,7 +60,7 @@ def test_selection_creates_catalog_event(session_factory):
             timestamp,
         )
 
-    assert event.message_id == "agua"
+    assert event.message_id == "companhia"
     assert event.requested_at == timestamp
     assert event.attended_at is None
     assert event.urgency == 1
@@ -153,11 +153,11 @@ def test_events_endpoint_returns_frontend_contract(postgres_test_database_url):
     assert len(result) == 1
     assert result[0] == {
         "id": result[0]["id"],
-        "message_id": "agua",
+        "message_id": "companhia",
         "requested_at": "2026-11-02T10:00:00+00:00",
         "attended_at": None,
     }
-    assert parse_events(result).iloc[0]["message_id"] == "agua"
+    assert parse_events(result).iloc[0]["message_id"] == "companhia"
 
 
 def test_serial_listener_persists_a_complete_frame(session_factory):
@@ -168,4 +168,4 @@ def test_serial_listener_persists_a_complete_frame(session_factory):
         events = list(session.scalars(select(Event)))
 
     assert len(events) == 1
-    assert events[0].message_id == "agua"
+    assert events[0].message_id == "companhia"

@@ -1,10 +1,26 @@
 import pytest
 
+from backend.events import MESSAGE_BY_CODE
 from backend.serial_protocol import (
     SerialMessage,
     SerialProtocolError,
     parse_serial_message,
 )
+
+
+def test_serial_codes_follow_catalog_order():
+    assert [MESSAGE_BY_CODE[f"{code:02d}"].id for code in range(1, 11)] == [
+        "companhia",
+        "descansar",
+        "calor",
+        "frio",
+        "posicao",
+        "agua",
+        "comida",
+        "banheiro",
+        "dor",
+        "ajuda",
+    ]
 
 
 @pytest.mark.parametrize("frame", ["S,01,3\r\n", b"S,01,3\r\n"])
