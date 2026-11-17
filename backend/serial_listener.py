@@ -60,31 +60,38 @@ class SerialListener:
     def _read_frames(self) -> None:
         import serial
 
-        try:
-            with serial.Serial(
-                self._port,
-                self._baudrate,
-                bytesize=serial.SEVENBITS,
-                parity=serial.PARITY_EVEN,
-                stopbits=serial.STOPBITS_ONE,
-                timeout=1,
-            ) as connection:
-                self._startup_event.set()
-                LOGGER.info(
-                    "Leitura serial iniciada em %s a %s baud.",
+        while not self._stop_event.is_set():
+            try:
+                with serial.Serial(
                     self._port,
                     self._baudrate,
+                    bytesize=serial.SEVENBITS,
+                    parity=serial.PARITY_EVEN,
+                    stopbits=serial.STOPBITS_ONE,
+                    timeout=1,
+                ) as connection:
+                    self._startup_event.set()
+                    LOGGER.info(
+                        "Leitura serial iniciada em %s a %s baud.",
+                        self._port,
+                        self._baudrate,
+                    )
+                    while not self._stop_event.is_set():
+                        frame = connection.read_until(b"\n", size=64)
+                        if not frame:
+                            continue
+                        self._process_frame(frame)
+            except serial.SerialException as exc:
+                if not self._startup_event.is_set():
+                    self._startup_error = exc
+                    self._startup_event.set()
+                    LOGGER.exception("Falha na conexão serial %s.", self._port)
+                    return
+                LOGGER.exception(
+                    "Conexão serial %s perdida; nova tentativa em 1 segundo.",
+                    self._port,
                 )
-                while not self._stop_event.is_set():
-                    frame = connection.read_until(b"\n", size=64)
-                    if not frame:
-                        continue
-                    self._process_frame(frame)
-        except serial.SerialException as exc:
-            if not self._startup_event.is_set():
-                self._startup_error = exc
-                self._startup_event.set()
-            LOGGER.exception("Falha na conexão serial %s.", self._port)
+                self._stop_event.wait(timeout=1)
 
     def _process_frame(self, frame: bytes) -> None:
         try:

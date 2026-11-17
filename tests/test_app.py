@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 import re
+from uuid import uuid4
 
 import pandas as pd
 import pytest
@@ -31,9 +32,21 @@ def test_demo_renders_and_exports_the_filtered_records(app):
     assert "Dados fictícios" in app.info[0].value
 
 
-def test_sidebar_contains_only_period_filter(app):
+def test_sidebar_contains_period_and_urgency_filters(app):
     assert len(app.sidebar.date_input) == 1
-    assert len(app.sidebar) == 1
+    assert len(app.sidebar.multiselect) == 1
+    assert app.sidebar.multiselect[0].label == "Urgência"
+
+
+def test_urgency_filter_updates_metrics_and_history(app):
+    app.sidebar.multiselect[0].set_value(["Média"]).run()
+    assert not app.exception
+    table = app.dataframe[0].value
+    assert set(table["Urgência"]) <= {"Média"}
+    assert int(app.metric[0].value.replace(".", "")) == len(table)
+    assert int(app.metric[1].value.replace(".", "")) == int(
+        table["Status"].eq("Atendida").sum()
+    )
 
 
 def test_clearing_messages_changes_only_hourly_chart_and_recovers(app):
@@ -123,3 +136,26 @@ def test_api_configuration_failure_is_visible(monkeypatch):
     assert not app.exception
     assert "JADE_API_URL" in app.error[0].value
     assert not app.metric
+
+
+def test_manual_refresh_invalidates_cached_api_data(monkeypatch):
+    from frontend.jade.data import parse_events
+
+    api_url = f"http://refresh-test-{uuid4().hex}:8000"
+    monkeypatch.setenv("JADE_DATA_SOURCE", "api")
+    monkeypatch.setenv("JADE_API_URL", api_url)
+    calls = []
+
+    def fetch_events(url):
+        calls.append(url)
+        return parse_events([])
+
+    monkeypatch.setattr("frontend.jade.data.fetch_api_events", fetch_events)
+    app = AppTest.from_file(str(APP)).run(timeout=20)
+    assert not app.exception
+    assert calls == [api_url]
+
+    next(button for button in app.button if button.label == "Atualizar dados").click().run()
+
+    assert not app.exception
+    assert calls == [api_url, api_url]

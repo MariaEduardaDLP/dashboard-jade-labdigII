@@ -80,6 +80,29 @@ esses parâmetros e o catálogo de códigos/mensagens em
 coleta real. O coletor rejeita quadros inválidos e atendimentos sem solicitação
 pendente correspondente.
 
+O protocolo espera quadros ASCII terminados em CRLF: `S,dd,u` para seleção e
+`A,dd,u` para atendimento. O mapeamento implementado é:
+
+| Código | Mensagem | Urgência |
+|---|---|---|
+| 01 | Quero companhia | Baixa |
+| 02 | Quero descansar | Baixa |
+| 03 | Estou com calor | Baixa |
+| 04 | Estou com frio | Baixa |
+| 05 | Quero mudar de posição | Média |
+| 06 | Quero água | Média |
+| 07 | Estou com fome | Média |
+| 08 | Preciso ir ao banheiro | Média |
+| 09 | Estou com dor | Alta |
+| 10 | Preciso de ajuda | Alta |
+
+O atendimento fecha a solicitação pendente mais antiga da mesma mensagem. Os
+horários são atribuídos pelo computador ao receber cada quadro, persistidos em
+UTC e exibidos no dashboard em `America/Sao_Paulo`. Após uma desconexão serial,
+o coletor tenta reabrir a porta a cada segundo. A prevenção de repetição por
+toque prolongado e o bloqueio de novas seleções enquanto ocupado pertencem ao
+projeto da FPGA; o coletor não deduplica seleções válidas.
+
 ## 4. Testar sem placa ou Supabase
 
 Para testar a interface local sem dados reais, abra o terminal na pasta do
@@ -94,13 +117,46 @@ streamlit run frontend\app.py
 O endereço local será mostrado no terminal (normalmente
 `http://localhost:8501`). Esse modo usa dados fictícios e não grava no banco.
 
+### Executar API e dashboard localmente
+
+Com um PostgreSQL de desenvolvimento preparado pelo esquema de
+[`database/schema.sql`](database/schema.sql), abra dois terminais na raiz do
+projeto. No primeiro, configure `JADE_DATABASE_URL` com a URL desse banco:
+
+```bash
+source .venv/bin/activate
+export JADE_DATABASE_URL='postgresql://USUARIO:SENHA@HOST:PORTA/BANCO?sslmode=require'
+uvicorn backend.main:app --reload
+```
+
+No segundo terminal, inicie o Streamlit usando a API local:
+
+```bash
+source .venv/bin/activate
+export JADE_DATA_SOURCE=api
+export JADE_API_URL=http://127.0.0.1:8000
+streamlit run frontend/app.py
+```
+
+A API disponibiliza `/health`, `/events` e `/docs` em `http://127.0.0.1:8000`.
+Para que a própria API leia a porta serial, configure também
+`JADE_SERIAL_ENABLED=true`, `JADE_SERIAL_PORT` e `JADE_SERIAL_BAUDRATE=115200`
+antes de iniciá-la. Alternativamente, execute `python -m backend.serial_worker`
+com o `.env` configurado para coletar na porta e mantenha a API com a serial
+desabilitada. Não execute os dois coletores simultaneamente na mesma porta. A
+URL PostgreSQL usada localmente deve apontar para um banco de desenvolvimento,
+não para o banco com dados reais.
+
 ## Configurações
 
 - **Streamlit Secrets:** `SUPABASE_URL`, `SUPABASE_KEY` publishable e
   `JADE_DATA_SOURCE="supabase"`; configurar no painel do Streamlit, não no Git.
 - **Arquivo local `.env`:** `JADE_DATABASE_URL` (URI PostgreSQL),
-  `JADE_SERIAL_PORT` (opcional; se vazia, pergunta ao iniciar) e
-  `JADE_SERIAL_BAUDRATE` (padrão `115200`).
+  `JADE_SERIAL_PORT` (opcional para o coletor; se vazia, pergunta ao iniciar),
+  `JADE_SERIAL_BAUDRATE` (padrão `115200`) e `JADE_SERIAL_ENABLED` (padrão
+  `false` para a API).
+- **API local:** `JADE_DATA_SOURCE="api"` e `JADE_API_URL` com a URL base da API
+  (por exemplo, `http://127.0.0.1:8000`).
 - O modelo de secrets do Streamlit está em
   [`.streamlit/secrets.toml.example`](.streamlit/secrets.toml.example).
 - O modelo local está em [`.env.example`](.env.example). O programa não carrega
@@ -121,6 +177,11 @@ run_backend.bat            # Inicialização do coletor
 
 ## Testes
 
+Os testes offline incluem o ciclo persistido de dez mensagens, três atendimentos
+da mensagem 05 com intervalos controlados, associação FIFO, rejeição de
+atendimento sem solicitação, reconexão serial simulada e filtro de urgência na
+interface. Eles não acessam hardware nem afirmam validar a FPGA física.
+
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 .\.venv\Scripts\python.exe -m pytest
@@ -128,6 +189,9 @@ run_backend.bat            # Inicialização do coletor
 
 Os testes que persistem eventos precisam de um PostgreSQL exclusivo configurado
 em `JADE_TEST_DATABASE_URL`. Nunca aponte os testes para o banco com dados reais.
+Os ensaios do CP2102/FPGA ainda precisam confirmar no equipamento o formato
+7E1/CRLF, os códigos e urgências, o debounce, o bloqueio enquanto há seleção
+pendente e a contagem física dos quadros enviados.
 
 ## Licença
 

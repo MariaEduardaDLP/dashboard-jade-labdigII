@@ -46,7 +46,7 @@ def main() -> None:
         )
 
     try:
-        baudrate = int(os.getenv("JADE_SERIAL_BAUDRATE", "115200"))
+        baudrate = int(os.getenv("JADE_SERIAL_BAUDRATE", "").strip() or "115200")
     except ValueError as exc:
         raise ValueError("JADE_SERIAL_BAUDRATE precisa ser um número inteiro.") from exc
 

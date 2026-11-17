@@ -6,10 +6,11 @@ from backend.serial_protocol import (
     SerialProtocolError,
     parse_serial_message,
 )
+from shared.catalog import MESSAGES
 
 
 def test_serial_codes_follow_catalog_order():
-    assert [MESSAGE_BY_CODE[f"{code:02d}"].id for code in range(1, 11)] == [
+    expected_messages = [
         "companhia",
         "descansar",
         "calor",
@@ -21,22 +22,29 @@ def test_serial_codes_follow_catalog_order():
         "dor",
         "ajuda",
     ]
+    assert [MESSAGE_BY_CODE[f"{code:02d}"].id for code in range(1, 11)] == expected_messages
+    assert [message.id for message in MESSAGES] == expected_messages
+    assert [MESSAGE_BY_CODE[f"{code:02d}"].urgency for code in range(1, 11)] == [
+        "Baixa", "Baixa", "Baixa", "Baixa",
+        "Média", "Média", "Média", "Média",
+        "Alta", "Alta",
+    ]
 
 
-@pytest.mark.parametrize("frame", ["S,01,3\r\n", b"S,01,3\r\n"])
+@pytest.mark.parametrize("frame", ["S,01,1\r\n", b"S,01,1\r\n"])
 def test_parse_selection_frame_preserves_leading_zero(frame):
     assert parse_serial_message(frame) == SerialMessage(
         message_type="S",
         message_code="01",
-        urgency=3,
+        urgency=1,
     )
 
 
 def test_parse_attendance_frame():
-    assert parse_serial_message("A,10,1\r\n") == SerialMessage(
+    assert parse_serial_message("A,10,3\r\n") == SerialMessage(
         message_type="A",
         message_code="10",
-        urgency=1,
+        urgency=3,
     )
 
 

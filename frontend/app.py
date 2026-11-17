@@ -152,12 +152,15 @@ def _render_dashboard(
             min_value=earliest, max_value=latest, format="DD/MM/YYYY",
             help="Inclui as datas inicial e final. Fuso: America/Sao_Paulo.",
         )
+        selected_urgencies = st.multiselect(
+            "Urgência", options=list(URGENCIES), default=list(URGENCIES),
+        )
 
     if len(period) != 2:
         st.info("Selecione a data final para completar o período.")
         st.stop()
     start, end = period
-    filtered = filter_events(events, start, end, list(URGENCIES), MESSAGE_IDS)
+    filtered = filter_events(events, start, end, selected_urgencies, MESSAGE_IDS)
     summary = summarize(filtered)
     context, refresh = st.columns([5, 1], vertical_alignment="center")
     context.caption(
@@ -237,7 +240,7 @@ def _render_dashboard(
             "- Um atendimento após a data final ainda conta para a solicitação feita no período.\n"
             "- O gráfico por horário soma os registros de todos os dias selecionados.\n"
             "- O ranking inclui as dez mensagens em ordem de uso no período; empates seguem a ordem do catálogo.\n"
-            "- As dez mensagens e suas urgências são provisórias e precisam ser confirmadas com a equipe."
+            "- As urgências seguem os grupos de códigos seriais 01–04 (Baixa), 05–08 (Média) e 09–10 (Alta); confirme a configuração correspondente na FPGA."
         )
     st.html('<div class="jade-footer">Projeto Jade · Laboratório Digital II · Comunicação Alternativa</div>')
 

@@ -54,12 +54,11 @@ def create_app(
     configured_serial_port = serial_port or os.getenv("JADE_SERIAL_PORT", "")
     baudrate_value = serial_baudrate
     if baudrate_value is None:
-        configured_baudrate = os.getenv("JADE_SERIAL_BAUDRATE", "")
-        if configured_baudrate:
-            try:
-                baudrate_value = int(configured_baudrate)
-            except ValueError as exc:
-                raise ValueError("JADE_SERIAL_BAUDRATE precisa ser um número inteiro.") from exc
+        configured_baudrate = os.getenv("JADE_SERIAL_BAUDRATE", "").strip() or "115200"
+        try:
+            baudrate_value = int(configured_baudrate)
+        except ValueError as exc:
+            raise ValueError("JADE_SERIAL_BAUDRATE precisa ser um número inteiro.") from exc
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
