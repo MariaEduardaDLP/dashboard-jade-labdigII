@@ -9,6 +9,29 @@ from backend.serial_protocol import (
 from shared.catalog import MESSAGES
 
 
+def test_message_catalog_order_and_urgencies_follow_fpga_codes():
+    expected_ids = [
+        "companhia",
+        "descansar",
+        "calor",
+        "frio",
+        "posicao",
+        "agua",
+        "comida",
+        "banheiro",
+        "dor",
+        "ajuda",
+    ]
+    assert [message.id for message in MESSAGES] == expected_ids
+    assert [MESSAGE_BY_CODE[f"{code:02d}"].id for code in range(1, 11)] == expected_ids
+    assert [message.urgency for message in MESSAGES] == [
+        "Baixa", "Baixa", "Baixa", "Baixa",
+        "Média", "Média", "Média", "Média",
+        "Alta", "Alta",
+    ]
+    assert MESSAGES[-1].label == "Preciso de ajuda"
+
+
 def test_serial_codes_follow_catalog_order():
     expected_messages = [
         "companhia",
