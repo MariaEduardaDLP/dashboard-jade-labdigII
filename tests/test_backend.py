@@ -87,7 +87,7 @@ def test_database_accepts_supabase_postgresql_urls(database_url):
     assert normalized_url.get_backend_name() == "postgresql"
 
 
-def test_attendance_closes_oldest_pending_request_for_same_message(session_factory):
+def test_attendance_closes_newest_pending_request_for_same_message(session_factory):
     first_time = datetime(2026, 11, 2, 10, tzinfo=timezone.utc)
     second_time = datetime(2026, 11, 2, 10, 1, tzinfo=timezone.utc)
     attended_time = datetime(2026, 11, 2, 10, 2, tzinfo=timezone.utc)
@@ -103,9 +103,9 @@ def test_attendance_closes_oldest_pending_request_for_same_message(session_facto
         )
         all_events = list(session.scalars(select(Event)))
 
-    assert attended.id == first.id
-    assert first.attended_at == attended_time
-    assert second.attended_at is None
+    assert attended.id == second.id
+    assert second.attended_at == attended_time
+    assert first.attended_at is None
     assert len(all_events) == 2
 
 

@@ -102,7 +102,7 @@ def process_serial_message(
                     Event.message_id == catalog_message.id,
                     Event.attended_at.is_(None),
                 )
-                .order_by(Event.requested_at.asc(), Event.sequence.asc())
+                .order_by(Event.requested_at.desc(), Event.sequence.desc())
                 .limit(1)
                 .with_for_update()
             )

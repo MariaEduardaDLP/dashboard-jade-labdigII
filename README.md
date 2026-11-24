@@ -96,7 +96,7 @@ O protocolo espera quadros ASCII terminados em CRLF: `S,dd,u` para seleção e
 | 09 | Estou com dor | Alta |
 | 10 | Preciso de ajuda | Alta |
 
-O atendimento fecha a solicitação pendente mais antiga da mesma mensagem. Os
+O atendimento fecha a solicitação pendente mais recente da mesma mensagem. Os
 horários são atribuídos pelo computador ao receber cada quadro, persistidos em
 UTC e exibidos no dashboard em `America/Sao_Paulo`. Após uma desconexão serial,
 o coletor tenta reabrir a porta a cada segundo. A prevenção de repetição por
@@ -178,7 +178,7 @@ run_backend.bat            # Inicialização do coletor
 ## Testes
 
 Os testes offline incluem o ciclo persistido de dez mensagens, três atendimentos
-da mensagem 05 com intervalos controlados, associação FIFO, rejeição de
+da mensagem 05 com intervalos controlados, associação ao pedido pendente mais recente, rejeição de
 atendimento sem solicitação, reconexão serial simulada e filtro de urgência na
 interface. Eles não acessam hardware nem afirmam validar a FPGA física.
 

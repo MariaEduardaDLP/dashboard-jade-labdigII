@@ -131,7 +131,7 @@ def test_message_05_response_metrics_use_recorded_timestamps(session_factory):
     assert summarize(dashboard_events).average_minutes == pytest.approx(16 / 180)
 
 
-def test_unmatched_attendance_is_rejected_and_oldest_pending_is_closed(session_factory):
+def test_unmatched_attendance_is_rejected_and_newest_pending_is_closed(session_factory):
     timestamp = datetime(2026, 11, 17, 14, tzinfo=timezone.utc)
     with session_factory() as session:
         with pytest.raises(SerialProcessingError, match="Não há solicitação pendente"):
@@ -148,9 +148,9 @@ def test_unmatched_attendance_is_rejected_and_oldest_pending_is_closed(session_f
         )
         records = list(session.scalars(select(Event).order_by(Event.sequence)))
 
-    assert attended.id == first.id
-    assert first.attended_at == timestamp + timedelta(seconds=2)
-    assert second.attended_at is None
+    assert attended.id == second.id
+    assert second.attended_at == timestamp + timedelta(seconds=2)
+    assert first.attended_at is None
     assert len(records) == 2
 
 
